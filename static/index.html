@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NF_Void IDE</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif;
+            background: #1e1e1e; color: #ccc; overflow: hidden;
+        }
+        #file-explorer {
+            width: 220px; min-width: 220px; max-width: 220px;
+            background: #252526; border-right: 1px solid #333;
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .explorer-header {
+            padding: 10px; font-weight: bold; font-size: 12px;
+            text-transform: uppercase; border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .new-file-btn { background: none; border: none; color: #ccc; cursor: pointer; font-size: 16px; }
+        .new-file-btn:hover { color: white; }
+        #file-list { flex-grow: 1; overflow-y: auto; padding: 5px; min-height: 0; }
+        .file-item { padding: 5px 10px; cursor: pointer; display: flex; align-items: center; font-size: 13px; }
+        .file-item:hover { background: #37373d; }
+        .file-item.active { background: #37373d; border-left: 2px solid #007acc; }
+        .file-icon { margin-right: 8px; }
+        .py-icon { color: #3572a5; }
+        .html-icon { color: #e34c26; }
+        .js-icon { color: #f7df1e; }
+        #main-area { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; }
+        #editor-container { flex-grow: 1; min-height: 200px; }
+        #bottom-panel {
+            height: 280px; min-height: 280px; max-height: 280px;
+            border-top: 1px solid #333; display: flex;
+            flex-direction: column; background: #1e1e1e; flex-shrink: 0;
+        }
+        #bottom-panel.collapsed { height: 35px; min-height: 35px; max-height: 35px; }
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #252526; padding: 0 10px; height: 35px;
+            flex-shrink: 0; cursor: pointer;
+        }
+        .panel-tabs { display: flex; }
+        .tab { padding: 8px 15px; cursor: pointer; border-right: 1px solid #333; font-size: 12px; text-transform: uppercase; }
+        .tab:hover { background: #333; }
+        .tab.active { background: #1e1e1e; border-top: 2px solid #007acc; color: white; }
+        .toggle-btn { background: none; border: none; color: #ccc; cursor: pointer; font-size: 14px; padding: 5px; }
+        .tab-content { display: none; flex-grow: 1; padding: 10px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 13px; min-height: 0; }
+        .tab-content.active { display: block; }
+        .terminal-container, .input-container { display: flex; flex-direction: column; height: 100%; }
+        .terminal-input-container { display: flex; align-items: center; padding: 10px; background: #1e1e1e; border-top: 1px solid #333; flex-shrink: 0; }
+        .terminal-prompt { color: #569cd6; margin-right: 10px; white-space: nowrap; font-weight: bold; }
+        .terminal-input { flex-grow: 1; background: #2d2d2d; border: 1px solid #3c3c3c; color: #fff; font-family: 'Consolas', monospace; font-size: 13px; outline: none; padding: 8px 12px; border-radius: 3px; }
+        .terminal-input:focus { border-color: #007acc; background: #333333; }
+        .input-history { flex-grow: 1; overflow-y: auto; padding: 10px; }
+        .input-entry { margin: 10px 0; padding: 10px; background: #2d2d2d; border-radius: 5px; }
+        .input-label { color: #569cd6; font-size: 11px; margin-bottom: 5px; }
+        .input-value { color: #89d185; font-family: 'Consolas', monospace; }
+        .input-clear-btn { background: #f48771; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 10px; align-self: flex-start; }
+        .input-clear-btn:hover { background: #d75a5a; }
+        .input-use-btn { background: #569cd6; color: white; border: none; padding: 8px 15px; border-radius: 3px; cursor: pointer; font-size: 12px; margin: 10px; align-self: flex-start; }
+        .input-use-btn:hover { background: #4a8fc7; }
+        .input-info { color: #888; font-size: 11px; margin: 10px; font-style: italic; }
+        #sidebar {
+            width: 320px; min-width: 320px; max-width: 320px;
+            border-left: 1px solid #333; display: flex;
+            flex-direction: column; background: #252526; flex-shrink: 0;
+        }
+        .sidebar-header { padding: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #333; }
+        #user-prompt { width: 90%; height: 80px; background: #3c3c3c; color: white; border: 1px solid #333; padding: 10px; margin: 10px; resize: none; }
+        .sidebar-buttons { padding: 0 10px 10px 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn { padding: 8px 15px; border: none; cursor: pointer; font-size: 12px; border-radius: 3px; color: white; }
+        .btn-ai { background: #0e639c; }
+        .btn-ai:hover { background: #1177bb; }
+        .btn-run { background: #2da44e; }
+        .btn-run:hover { background: #3fb95e; }
+        .btn-html { background: #e34c26; }
+        .btn-html:hover { background: #f65d3a; }
+        .btn-save { background: #ff9800; }
+        .btn-save:hover { background: #f57c00; }
+        #ai-response { flex-grow: 1; padding: 10px; overflow-y: auto; font-size: 13px; line-height: 1.5; white-space: pre-wrap; border-top: 1px solid #333; min-height: 0; }
+        .output-text { color: #89d185; }
+        .error-text { color: #f48771; }
+        .info-text { color: #569cd6; }
+        .warning-text { color: #dcdcaa; }
+        .problem-item { padding: 6px 10px; border-bottom: 1px solid #333; display: flex; align-items: flex-start; font-size: 12px; cursor: pointer; }
+        .problem-item:hover { background: #2a2d2e; }
+        .problem-icon { margin-right: 8px; min-width: 16px; }
+        .problem-line { color: #808080; margin-left: 10px; font-size: 11px; }
+        .terminal-line { margin: 3px 0; padding: 2px 0; }
+        .terminal-command { color: #569cd6; }
+        .terminal-output { color: #ccc; }
+        .terminal-error { color: #f48771; }
+        .terminal-success { color: #89d185; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #252526; padding: 20px; border: 1px solid #333; border-radius: 5px; min-width: 350px; }
+        .modal input, .modal select { background: #3c3c3c; border: 1px solid #333; color: white; padding: 8px; margin: 10px 0; width: 100%; border-radius: 3px; }
+        .modal select { cursor: pointer; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; }
+        #status-bar {
+            position: fixed; bottom: 0; left: 220px; right: 320px;
+            height: 25px; background: #007acc; display: flex;
+            align-items: center; padding: 0 10px; font-size: 11px; color: white; z-index: 100;
+        }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+</head>
+<body>
+
+<div id="file-explorer">
+    <div class="explorer-header">
+        <span>📁 ПРОЕКТ</span>
+        <button class="new-file-btn" onclick="showNewFileModal()" title="Новый файл">+</button>
+    </div>
+    <div id="file-list"></div>
+</div>
+
+<div id="main-area">
+    <div id="editor-container"></div>
+    <div id="bottom-panel">
+        <div class="panel-header" onclick="toggleBottomPanel()">
+            <div class="panel-tabs">
+                <div class="tab active" onclick="event.stopPropagation(); switchTab('output')">Output</div>
+                <div class="tab" onclick="event.stopPropagation(); switchTab('input')">Input</div>
+                <div class="tab" onclick="event.stopPropagation(); switchTab('terminal')">Terminal</div>
+                <div class="tab" onclick="event.stopPropagation(); switchTab('problems')">Problems <span id="problem-count" style="background:#f48771;color:black;padding:0 4px;border-radius:3px;font-size:10px;display:none">0</span></div>
+            </div>
+            <button class="toggle-btn" id="toggle-icon">▼</button>
+        </div>
+        <div id="output" class="tab-content active"></div>
+        <div id="input" class="tab-content">
+            <div class="input-container">
+                <div class="input-history" id="input-history">
+                    <div style="color:#888;font-size:12px;">Введённые данные появятся здесь...</div>
+                </div>
+                <div class="terminal-input-container">
+                    <span class="terminal-prompt">Input >></span>
+                    <input type="text" class="terminal-input" id="input-field" placeholder="Введите текст или число..." autocomplete="off">
+                </div>
+                <button class="input-use-btn" onclick="useInputData()">✓ Использовать Input при запуске</button>
+                <button class="input-clear-btn" onclick="clearInputHistory()">🗑️ Очистить историю</button>
+                <div class="input-info">💡 Введите данные → Enter → Нажмите кнопку → ▶ Run</div>
+            </div>
+        </div>
+        <div id="terminal" class="tab-content">
+            <div class="terminal-container">
+                <div id="terminal-history"></div>
+                <div class="terminal-input-container">
+                    <span class="terminal-prompt">NF_Void >></span>
+                    <input type="text" class="terminal-input" id="terminal-input" placeholder="pip install requests" autocomplete="off" spellcheck="false">
+                </div>
+            </div>
+        </div>
+        <div id="problems" class="tab-content"></div>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div class="sidebar-header">🤖 AI (OLLAMA)</div>
+    <textarea id="user-prompt" placeholder="Что нужно сделать?"></textarea>
+    <div class="sidebar-buttons">
+        <button class="btn btn-ai" onclick="askAI()">✨ Ask AI</button>
+        <button class="btn btn-run" onclick="runCode()" id="btn-run">▶ Run</button>
+        <button class="btn btn-html" onclick="runHTML()" id="btn-html" style="display:none">🌐 View</button>
+        <button class="btn btn-save" onclick="saveCurrentFile()">💾 Save</button>
+    </div>
+    <div id="ai-response">Готов к работе!</div>
+</div>
+
+<div id="status-bar">
+    <span id="status-text">Python 3.x | NF_Void IDE</span>
+</div>
+
+<div id="newFileModal" class="modal">
+    <div class="modal-content">
+        <h3>📄 Новый файл</h3>
+        <label style="font-size:12px;color:#888;">Имя файла:</label>
+        <input type="text" id="newFilename" placeholder="example.py">
+        <label style="font-size:12px;color:#888;">Тип файла:</label>
+        <select id="newFileType">
+            <option value="python">🐍 Python (.py)</option>
+            <option value="html">🌐 HTML (.html)</option>
+            <option value="javascript">📜 JavaScript (.js)</option>
+        </select>
+        <div class="modal-buttons">
+            <button class="btn" onclick="closeNewFileModal()">Отмена</button>
+            <button class="btn btn-ai" onclick="createNewFile()">Создать</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let editor;
+    let currentFile = 'app.py';
+    let fileContents = {};
+    let autoSaveTimer = null;
+    let isBottomPanelCollapsed = false;
+    let inputHistory = [];
+
+    const FILE_TEMPLATES = {
+        python: `# NF_Void IDE - Python\nprint("=" * 50)\nprint("🐍 NF_Void IDE")\nprint("=" * 50)\n\nname = input("Введите имя: ")\nprint(f"Привет, {name}!")\n\nnum1 = float(input("Первое число: "))\nnum2 = float(input("Второе число: "))\nprint(f"{num1} + {num2} = {num1 + num2}")\n\nprint("\\n✅ Готово!")\n`,
+        javascript: `// NF_Void IDE - JavaScript\nconsole.log("=".repeat(50));\nconsole.log("📜 NF_Void IDE");\nconsole.log("=".repeat(50));\n\nconst name = prompt("Введите имя:");\nconsole.log("Привет, " + name + "!");\n\nconst num1 = parseFloat(prompt("Первое число:"));\nconst num2 = parseFloat(prompt("Второе число:"));\nconsole.log(num1 + " + " + num2 + " = " + (num1 + num2));\n\nconsole.log("\\n✅ Готово!");\n`,
+        html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>NF_Void IDE</title>\n    <style>\n        body { font-family: Arial; background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }\n        .container { text-align: center; background: rgba(255,255,255,0.15); padding: 50px; border-radius: 20px; }\n        h1 { margin-bottom: 20px; }\n        .btn { background: #4CAF50; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 10px; cursor: pointer; margin-top: 20px; }\n    </style>\n</head>\n<body>\n    <div class="container">\n        <h1>🌐 NF_Void IDE</h1>\n        <p>HTML страница готова!</p>\n        <button class="btn" onclick="alert('Работает!')">Нажми меня</button>\n    </div>\n</body>\n</html>\n`
+    };
+
+    // === ИНИЦИАЛИЗАЦИЯ ===
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('editor-container'), {
+            value: FILE_TEMPLATES.python,
+            language: 'python',
+            theme: 'vs-dark',
+            automaticLayout: true,
+            fontSize: 14
+        });
+
+        editor.onDidChangeModelContent(function() {
+            if (autoSaveTimer) clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(saveCurrentFileToMemory, 1000);
+        });
+
+        loadFiles();
+        addTerminalLine("NF_Void Terminal v1.0", "info");
+
+        // 🔧 ИНИЦИАЛИЗАЦИЯ TERMINAL
+        const termInput = document.getElementById('terminal-input');
+        if (termInput) {
+            termInput.addEventListener('keypress', handleTerminalKey);
+        }
+
+        // 🔧 ИНИЦИАЛИЗАЦИЯ INPUT
+        const inputField = document.getElementById('input-field');
+        if (inputField) {
+            inputField.addEventListener('keypress', handleInputKey);
+            inputField.addEventListener('focus', function() { this.select(); });
+        }
+
+        console.log('✅ NF_Void IDE инициализирован');
+    });
+
+    function saveCurrentFileToMemory() {
+        if (currentFile && editor) fileContents[currentFile] = editor.getValue();
+    }
+
+    async function saveCurrentFile() {
+        if (!currentFile || !editor) return;
+        try {
+            await fetch('/api/file/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: currentFile, content: editor.getValue() })
+            });
+            fileContents[currentFile] = editor.getValue();
+        } catch (e) { console.error(e); }
+    }
+
+    function toggleBottomPanel() {
+        const panel = document.getElementById('bottom-panel');
+        const icon = document.getElementById('toggle-icon');
+        isBottomPanelCollapsed = !isBottomPanelCollapsed;
+        panel.classList.toggle('collapsed');
+        icon.innerText = isBottomPanelCollapsed ? '▲' : '▼';
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.panel-tabs .tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+        if (isBottomPanelCollapsed) toggleBottomPanel();
+    }
+
+    function addTerminalLine(text, type) {
+        const history = document.getElementById('terminal-history');
+        const div = document.createElement('div');
+        div.className = 'terminal-line';
+        div.style.color = type === 'error' ? '#f48771' : type === 'success' ? '#89d185' : type === 'info' ? '#569cd6' : '#ccc';
+        div.textContent = text;
+        history.appendChild(div);
+        history.scrollTop = history.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function handleTerminalKey(event) {
+        if (event.key === 'Enter') {
+            const input = document.getElementById('terminal-input');
+            const command = input.value.trim();
+            if (command) {
+                addTerminalLine('NF_Void >> ' + command, 'command');
+                executeTerminalCommand(command);
+                input.value = '';
+            }
+        }
+    }
+
+    async function executeTerminalCommand(command) {
+        try {
+            const response = await fetch('/terminal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: command })
+            });
+            const result = await response.json();
+            addTerminalLine(result.output, result.success ? 'success' : 'error');
+        } catch (e) {
+            addTerminalLine('Ошибка: ' + e, 'error');
+        }
+    }
+
+    function handleInputKey(event) {
+        if (event.key === 'Enter') {
+            const input = document.getElementById('input-field');
+            const value = input.value.trim();
+            if (value) {
+                addToInputHistory(value);
+                input.value = '';
+            }
+        }
+    }
+
+    function addToInputHistory(value) {
+        const timestamp = new Date().toLocaleTimeString();
+        inputHistory.push({ value: value, time: timestamp });
+
+        const history = document.getElementById('input-history');
+        if (inputHistory.length === 1) history.innerHTML = '';
+
+        const entry = document.createElement('div');
+        entry.className = 'input-entry';
+        entry.innerHTML = '<div class="input-label">⏰ ' + timestamp + '</div><div class="input-value">' + escapeHtml(value) + '</div>';
+        history.appendChild(entry);
+        history.scrollTop = history.scrollHeight;
+    }
+
+    function clearInputHistory() {
+        inputHistory = [];
+        document.getElementById('input-history').innerHTML = '<div style="color:#888;font-size:12px;">История очищена</div>';
+    }
+
+    function useInputData() {
+        const inputField = document.getElementById('input-field');
+        const currentValue = inputField ? inputField.value.trim() : '';
+
+        // Если есть текст в поле - добавляем в историю
+        if (currentValue) {
+            addToInputHistory(currentValue);
+            if (inputField) inputField.value = '';
+        }
+
+        if (inputHistory.length > 0) {
+            alert('✅ Input активирован! (' + inputHistory.length + ' значений)\n\n' +
+                  'Данные: ' + inputHistory.map(item => item.value).join(', ') +
+                  '\n\nТеперь нажмите ▶ Run');
+        } else {
+            alert('⚠️ Введите данные в поле Input и нажмите Enter!');
+        }
+    }
+
+    function getFileIcon(filename) {
+        if (filename.endsWith('.py')) return { icon: '🐍', class: 'py-icon' };
+        if (filename.endsWith('.html')) return { icon: '🌐', class: 'html-icon' };
+        if (filename.endsWith('.js')) return { icon: '📜', class: 'js-icon' };
+        return { icon: '📄', class: '' };
+    }
+
+    function getLanguage(filename) {
+        if (filename.endsWith('.py')) return 'python';
+        if (filename.endsWith('.html')) return 'html';
+        if (filename.endsWith('.js')) return 'javascript';
+        return 'plaintext';
+    }
+
+    async function loadFiles() {
+        try {
+            const response = await fetch('/api/files');
+            const data = await response.json();
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            data.files.forEach(file => {
+                const div = document.createElement('div');
+                div.className = 'file-item' + (file.name === currentFile ? ' active' : '');
+                const fileIcon = getFileIcon(file.name);
+                div.innerHTML = '<span class="file-icon ' + fileIcon.class + '">' + fileIcon.icon + '</span> ' + file.name;
+                div.onclick = () => openFile(file.name);
+                fileList.appendChild(div);
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    async function openFile(filename) {
+        saveCurrentFileToMemory();
+        currentFile = filename;
+
+        document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        try {
+            if (fileContents[filename]) {
+                editor.setValue(fileContents[filename]);
+            } else {
+                const response = await fetch('/api/file/read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                });
+                const data = await response.json();
+                editor.setValue(data.content);
+                fileContents[filename] = data.content;
+            }
+
+            monaco.editor.setModelLanguage(editor.getModel(), getLanguage(filename));
+            document.getElementById('btn-html').style.display = filename.endsWith('.html') ? 'inline-block' : 'none';
+            document.getElementById('btn-run').style.display = (filename.endsWith('.py') || filename.endsWith('.js')) ? 'inline-block' : 'none';
+        } catch (e) { console.error(e); }
+    }
+
+    function showNewFileModal() {
+        document.getElementById('newFileModal').style.display = 'flex';
+        document.getElementById('newFilename').value = '';
+    }
+
+    function closeNewFileModal() {
+        document.getElementById('newFileModal').style.display = 'none';
+    }
+
+    async function createNewFile() {
+        const filename = document.getElementById('newFilename').value;
+        const fileType = document.getElementById('newFileType').value;
+
+        if (!filename) { alert('Введите имя файла!'); return; }
+
+        let finalFilename = filename;
+        if (fileType === 'python' && !filename.endsWith('.py')) finalFilename += '.py';
+        if (fileType === 'html' && !filename.endsWith('.html')) finalFilename += '.html';
+        if (fileType === 'javascript' && !filename.endsWith('.js')) finalFilename += '.js';
+
+        try {
+            await fetch('/api/file/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: finalFilename, file_type: fileType, content: FILE_TEMPLATES[fileType] })
+            });
+            fileContents[finalFilename] = FILE_TEMPLATES[fileType];
+            closeNewFileModal();
+            loadFiles();
+        } catch (e) { alert('Ошибка: ' + e); }
+    }
+
+    async function runCode() {
+        saveCurrentFileToMemory();
+        await saveCurrentFile();
+
+        let code = editor.getValue();
+        const outputDiv = document.getElementById('output');
+        const problemsDiv = document.getElementById('problems');
+        const problemCountSpan = document.getElementById('problem-count');
+
+        outputDiv.innerHTML = '<span class="info-text">⏳ Запуск...</span>';
+        problemsDiv.innerHTML = '';
+
+        // INPUT ЛОГИКА
+        if (inputHistory.length > 0) {
+            const inputValues = inputHistory.map(item => item.value);
+            outputDiv.innerHTML += '<div style="background:#2d2d2d;padding:10px;border-radius:5px;margin-bottom:10px;"><span class="info-text">📥 Input:</span> <span class="output-text">' + escapeHtml(inputValues.join(' | ')) + '</span></div>';
+
+            if (currentFile.endsWith('.py')) {
+                code = wrapPythonCode(code, inputValues);
+            } else if (currentFile.endsWith('.js')) {
+                code = wrapJSCode(code, inputValues);
+            }
+        }
+
+        if (currentFile.endsWith('.js')) {
+            try {
+                const response = await fetch('/run_js', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, filename: currentFile })
+                });
+                const result = await response.json();
+                outputDiv.innerHTML += '<pre class="output-text">' + escapeHtml(result.stdout || '') + '</pre>';
+                if (result.stderr) outputDiv.innerHTML += '<pre class="error-text">' + escapeHtml(result.stderr) + '</pre>';
+            } catch (e) {
+                outputDiv.innerHTML = '<span class="error-text">❌ ' + e + '</span>';
+            }
+        } else {
+            try {
+                const response = await fetch('/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, filename: currentFile })
+                });
+                const result = await response.json();
+                outputDiv.innerHTML += '<pre class="output-text">' + escapeHtml(result.stdout || '') + '</pre>';
+                if (result.problems && result.problems.length > 0) {
+                    problemCountSpan.style.display = 'inline';
+                    problemCountSpan.innerText = result.problems.length;
+                    result.problems.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'problem-item';
+                        div.innerHTML = '<span class="problem-icon">⛔</span> ' + escapeHtml(p.message);
+                        problemsDiv.appendChild(div);
+                    });
+                } else {
+                    problemCountSpan.style.display = 'none';
+                }
+            } catch (e) {
+                outputDiv.innerHTML = '<span class="error-text">❌ ' + e + '</span>';
+            }
+        }
+    }
+
+    function wrapPythonCode(code, inputValues) {
+        return `# NF_Void IDE - Input Mock\nimport sys\nfrom io import StringIO\n\nclass InputMock:\n    def __init__(self, values):\n        self.values = values\n        self.index = 0\n    def mock_input(self, prompt=''):\n        if self.index < len(self.values):\n            val = self.values[self.index]\n            self.index += 1\n            if prompt: print(prompt, end='', flush=True)\n            print(val)\n            return val\n        return ''\n\n_input_mock = InputMock(${JSON.stringify(inputValues)})\ninput = _input_mock.mock_input\n\n# ============ КОД ============\n` + code;
+    }
+
+    function wrapJSCode(code, inputValues) {
+        return `(function() {\n    const inputValues = ${JSON.stringify(inputValues)};\n    let inputIndex = 0;\n    window.prompt = function(msg) {\n        if (inputIndex < inputValues.length) {\n            const val = inputValues[inputIndex++];\n            console.log((msg || '') + val);\n            return val;\n        }\n        return '';\n    };\n    \n    // ============ КОД ============\n    ` + code + '\n})();';
+    }
+
+    async function runHTML() {
+        await saveCurrentFile();
+        const outputDiv = document.getElementById('output');
+        outputDiv.innerHTML = '<span class="info-text">⏳ Запуск...</span>';
+
+        try {
+            const response = await fetch('/run_html', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: currentFile })
+            });
+            const result = await response.json();
+            outputDiv.innerHTML = result.success ? '<span class="terminal-success">✓ Открыто: ' + result.url + '</span>' : '<span class="error-text">❌ ' + result.error + '</span>';
+        } catch (e) {
+            outputDiv.innerHTML = '<span class="error-text">❌ ' + e + '</span>';
+        }
+    }
+
+    async function askAI() {
+        const prompt = document.getElementById('user-prompt').value;
+        const code = editor ? editor.getValue() : '';
+        const aiDiv = document.getElementById('ai-response');
+
+        if (!prompt.trim()) { aiDiv.innerHTML = '<span class="warning-text">⚠ Введите запрос!</span>'; return; }
+
+        aiDiv.innerHTML = '<span class="info-text">🤔 Думаю...</span>';
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: prompt, current_code: code })
+            });
+            const result = await response.json();
+            aiDiv.innerText = result.response || result.error;
+        } catch (e) {
+            aiDiv.innerHTML = '<span class="error-text">❌ ' + e + '</span>';
+        }
+    }
+</script>
+
+</body>
+</html>
